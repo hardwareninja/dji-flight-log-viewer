@@ -1,6 +1,7 @@
 # Flight data & local caches (private)
 *.txt
 IMG_9063.jpg
+螢幕截圖*
 .cache/
 .keychains_*.json
 .ref/
