@@ -159,8 +159,11 @@ def api_upload():
     f = request.files.get("file")
     if not f or not f.filename.lower().endswith(".txt"):
         return jsonify({"error": "please upload a DJI flight record .txt file"}), 400
-    name = os.path.basename(f.filename)
-    if re.search(r"[\\/..]", name):
+    raw = f.filename
+    if "/" in raw or "\\" in raw or ".." in raw:
+        return jsonify({"error": "invalid file name"}), 400
+    name = os.path.basename(raw)
+    if name.startswith(".") or not name:
         return jsonify({"error": "invalid file name"}), 400
     dest = os.path.join(BASE_DIR, name)
     f.save(dest)
