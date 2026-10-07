@@ -17,7 +17,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 import dji_log_parser as dlp
 
-API_KEY = os.environ.get("DJI_API_KEY", "5149f682627b9291e483afe66de6fd4")
+API_KEY = os.environ.get("DJI_API_KEY", "")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.join(BASE_DIR, ".cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
@@ -52,7 +52,7 @@ def find_logs() -> list:
     return logs
 
 
-def parse_cached(name: str) -> dict:
+def parse_cached(name: str, api_key: str = "") -> dict:
     """Parse a log, using/refreshing an on-disk cache (keychains included)."""
     path = os.path.join(BASE_DIR, name)
     if not os.path.isfile(path):
@@ -81,7 +81,7 @@ def parse_cached(name: str) -> dict:
         except (json.JSONDecodeError, KeyError):
             cached_chains = None
 
-    log = dlp.parse_log(data, api_key=API_KEY, cached_keychains=cached_chains)
+    log = dlp.parse_log(data, api_key=api_key or API_KEY, cached_keychains=cached_chains)
     built = dlp.build_frames(log)
 
     chains = [[[fp, _b64(iv), _b64(key)] for fp, (iv, key) in ch.items()]
@@ -138,17 +138,29 @@ def api_logs():
     return jsonify(logs)
 
 
+def _need_key_response(exc: Exception):
+    """Turn a missing-key error into a 400 the UI can act on."""
+    msg = str(exc)
+    if "API key" in msg:
+        return jsonify({"error": msg, "need_key": True}), 400
+    return None
+
+
 @app.route("/api/log")
 def api_log():
     name = request.args.get("name", "")
     if "/" in name or ".." in name or not name.lower().endswith(".txt"):
         return jsonify({"error": "invalid file name"}), 400
+    api_key = request.headers.get("X-DJI-Key") or request.args.get("api_key", "")
     t0 = time.time()
     try:
-        payload = parse_cached(name)
+        payload = parse_cached(name, api_key=api_key)
     except FileNotFoundError:
         return jsonify({"error": "file not found"}), 404
     except Exception as exc:  # noqa: BLE001
+        resp = _need_key_response(exc)
+        if resp:
+            return resp
         return jsonify({"error": str(exc)}), 500
     payload["parse_seconds"] = round(time.time() - t0, 2)
     return jsonify(payload)
@@ -167,10 +179,14 @@ def api_upload():
         return jsonify({"error": "invalid file name"}), 400
     dest = os.path.join(BASE_DIR, name)
     f.save(dest)
+    api_key = request.headers.get("X-DJI-Key") or request.form.get("api_key", "")
     try:
-        parse_cached(name)
+        parse_cached(name, api_key=api_key)
     except Exception as exc:  # noqa: BLE001
         os.remove(dest)
+        resp = _need_key_response(exc)
+        if resp:
+            return resp
         return jsonify({"error": f"could not parse {name}: {exc}"}), 400
     return jsonify({"ok": True, "name": name})
 

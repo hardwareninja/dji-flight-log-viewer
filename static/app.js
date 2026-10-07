@@ -68,14 +68,50 @@ function renderFileList() {
   }
 }
 
+/* ================= API key handling ================= */
+function getApiKey() {
+  return ($("apiKey").value || "").trim() || localStorage.getItem("djiApiKey") || "";
+}
+function setKeyStatus(msg, bad) {
+  const el = $("keyStatus");
+  el.textContent = msg;
+  el.classList.toggle("key-bad", !!bad);
+}
+function initApiKeyUI() {
+  const saved = localStorage.getItem("djiApiKey") || "";
+  $("apiKey").value = saved;
+  setKeyStatus(saved ? "Key saved in this browser." : "No key set — enter your DJI API key above.",
+               !saved);
+  $("btnSaveKey").onclick = () => {
+    const k = $("apiKey").value.trim();
+    if (!k) { setKeyStatus("Please paste a key first.", true); return; }
+    localStorage.setItem("djiApiKey", k);
+    setKeyStatus("Key saved in this browser.");
+    toast("API key saved");
+  };
+  $("btnClearKey").onclick = () => {
+    localStorage.removeItem("djiApiKey");
+    $("apiKey").value = "";
+    setKeyStatus("Key cleared.", true);
+  };
+}
+
 async function openLog(name) {
   state.current = name;
   renderFileList();
   $("logTitle").textContent = name;
   toast("Parsing " + name + " …");
-  const r = await fetch("/api/log?name=" + encodeURIComponent(name));
+  const r = await fetch("/api/log?name=" + encodeURIComponent(name),
+                        { headers: { "X-DJI-Key": getApiKey() } });
   const j = await r.json();
-  if (j.error) { toast("Error: " + j.error, true); return; }
+  if (j.error) {
+    if (j.need_key) {
+      setKeyStatus("A DJI API key is required to decrypt this log. Paste yours above and retry.", true);
+      $("apiKey").focus();
+    }
+    toast("Error: " + j.error, true);
+    return;
+  }
   state.data = j;
   $("frameStats").textContent =
     `${j.frames.length} frames · v${j.version} · parsed in ${j.parse_seconds}s`;
@@ -399,15 +435,23 @@ $("filePick").onchange = async e => {
   for (const file of files) {
     const fd = new FormData();
     fd.append("file", file);
+    fd.append("api_key", getApiKey());
     toast("Uploading " + file.name + " …");
     const r = await fetch("/api/upload", { method: "POST", body: fd });
     const j = await r.json();
-    if (j.error) toast(j.error, true);
+    if (j.error) {
+      if (j.need_key) {
+        setKeyStatus("A DJI API key is required to decrypt this log. Paste yours above and retry.", true);
+        $("apiKey").focus();
+      }
+      toast(j.error, true);
+    }
   }
   e.target.value = "";
   await loadLogs();
 };
 
 /* boot */
+initApiKeyUI();
 window.addEventListener("resize", () => state.data && buildPlot());
 loadLogs();

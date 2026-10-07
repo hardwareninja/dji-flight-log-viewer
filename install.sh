@@ -21,7 +21,7 @@ cd "$APP_DIR"
 # 3) Start server on all interfaces, port 8080 (survives shell exit)
 pkill -f "app.py" 2>/dev/null || true
 sleep 1
-nohup env HOST=0.0.0.0 PORT=8080 DJI_API_KEY="${DJI_API_KEY:-5149f682627b9291e483afe66de6fd4}" \
+nohup env HOST=0.0.0.0 PORT=8080 DJI_API_KEY="${DJI_API_KEY:-}" \
   .venv/bin/python app.py > /var/log/dji-viewer.log 2>&1 &
 sleep 2
 echo "Started. Log: /var/log/dji-viewer.log"

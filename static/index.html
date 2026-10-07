@@ -20,6 +20,18 @@
     </div>
 
     <div class="side-section">
+      <div class="side-title collapsible">DJI API KEY</div>
+      <input id="apiKey" class="side-input" type="password" placeholder="Your DJI developer API key" autocomplete="off">
+      <div class="key-row">
+        <button id="btnSaveKey" class="btn btn-dark">Save Key</button>
+        <button id="btnClearKey" class="btn btn-dark">Clear</button>
+      </div>
+      <div id="keyStatus" class="key-status">Key stored in this browser only.</div>
+      <div class="key-hint">Decryption needs a personal DJI Developer API key.
+        Get one free at <a href="https://developer.dji.com/user/apps" target="_blank" rel="noopener">developer.dji.com</a>.</div>
+    </div>
+
+    <div class="side-section">
       <div class="side-title collapsible">CHART COLUMNS</div>
       <input id="colFilter" class="side-input" placeholder="Filter columns">
       <div id="seriesBoxes" class="side-list checkboxes"></div>

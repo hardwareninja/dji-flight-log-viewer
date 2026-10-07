@@ -110,6 +110,14 @@ select.ctl { padding: 4px; }
 .point-details .row span:first-child { color: var(--muted); }
 .point-details .hidden { display: none; }
 
+/* API key section */
+.key-row { display: flex; gap: 6px; margin-top: 6px; }
+.key-row .btn { flex: 1; font-size: 11px; padding: 4px 6px; }
+.key-status { font-size: 10.5px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+.key-status.key-bad { color: #e8a13c; }
+.key-hint { font-size: 10.5px; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+.key-hint a { color: var(--accent); text-decoration: none; }
+
 .table-wrap { overflow: auto; max-height: 340px; }
 #dataTable { border-collapse: collapse; font-size: 12px; width: 100%; }
 #dataTable th, #dataTable td {

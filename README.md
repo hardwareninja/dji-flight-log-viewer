@@ -35,13 +35,12 @@ Then open <http://127.0.0.1:8080>.
 
 ## DJI API key
 
-Keychain decryption requires a DJI Developer API key. Set it via environment variable:
+v14 logs are encrypted; decryption requires a **personal DJI Developer API key** (free at the [DJI Developer portal](https://developer.dji.com/doc/open-api-tutorial/en/)).
 
-```bash
-DJI_API_KEY=your_key_here .venv/bin/python app.py
-```
+- **In the app**: paste your key into the **DJI API KEY** field in the sidebar and click *Save Key* — it is stored in your browser (`localStorage`) and sent only with parse requests.
+- **On the server** (optional): `DJI_API_KEY=your_key .venv/bin/python app.py`
 
-A default key can be placed in `app.py` for personal use — note that **any key committed to a public repo is visible to everyone**. Get your own key at the [DJI Developer portal](https://developer.dji.com/doc/open-api-tutorial/en/).
+The key is never embedded in the code. Log files are decrypted locally and are **not uploaded** anywhere; only the key request goes to DJI.
 
 ## Files
 
