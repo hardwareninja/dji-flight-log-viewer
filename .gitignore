@@ -1,5 +1,6 @@
 # Flight data & local caches (private)
 *.txt
+IMG_9063.jpg
 .cache/
 .keychains_*.json
 .ref/
