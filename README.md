@@ -4,6 +4,8 @@ A local web application that decrypts and visualizes **DJI v14 encrypted flight 
 
 ![UI](https://img.shields.io/badge/python-3.10%2B-blue) ![UI](https://img.shields.io/badge/flask-3.x-green)
 
+![Sample UI](IMG_9063.jpg)
+
 ## Features
 
 - **Encrypted log parsing** — DJI Fly v14 logs are encrypted per-record. This parser implements the full pipeline: CRC-64 framing, XOR seed derivation, AES-128-CBC decryption with per-feature-point IV chains, and keychain retrieval via the DJI Developer API (`https://developer.dji.com/api/openapi/v1/appapi/component/info/keychain`).
