@@ -121,9 +121,171 @@ async function openLog(name) {
   buildPlot();
   buildMap();
   buildTable();
+  buildForensics(j);
   $("btnExport").href = "data:application/json," +
     encodeURIComponent(JSON.stringify(j.frames));
   toast(`${j.frames.length} frames loaded`);
+}
+
+/* ================= forensics ================= */
+function cleanStr(s) {
+  if (!s) return "—";
+  const t = String(s).replace(/[^\x20-\x7E]/g, "").trim();
+  return t || "—";
+}
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000, r = Math.PI / 180;
+  const dLat = (lat2 - lat1) * r, dLon = (lon2 - lon1) * r;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function analyzeFlight(j) {
+  const f = j.frames, d = j.details || {}, rec = j.recover || {};
+  const flags = [];
+  const phases = [];
+
+  // ---- GPS integrity & anomalies ----
+  let gpsLossStart = null, gpsLossCount = 0;
+  let maxSpeed = 0, maxAlt = -Infinity, minAlt = Infinity;
+  let prev = null;
+  for (let i = 0; i < f.length; i++) {
+    const x = f[i];
+    maxSpeed = Math.max(maxSpeed, x.hspeed || 0);
+    if (x.height != null) { maxAlt = Math.max(maxAlt, x.height); minAlt = Math.min(minAlt, x.height); }
+    if (!x.gps_valid && gpsLossStart === null) gpsLossStart = i;
+    if (x.gps_valid && gpsLossStart !== null) {
+      if (i - gpsLossStart >= 5) { gpsLossCount++; flags.push({ sev: "warn", t: f[gpsLossStart].fly_time, msg: `GPS fix lost for ${((x.fly_time - f[gpsLossStart].fly_time)).toFixed(1)} s (${i - gpsLossStart} frames)` }); }
+      gpsLossStart = null;
+    }
+    if (prev && x.gps_valid && prev.gps_valid && x.lat && prev.lat) {
+      const dt = x.fly_time - prev.fly_time;
+      if (dt > 0 && dt < 5) {
+        const dist = haversine(prev.lat, prev.lon, x.lat, x.lon);
+        const spd = dist / dt;
+        if (spd > 40) flags.push({ sev: "alert", t: x.fly_time, msg: `Position jump ${dist.toFixed(0)} m in ${dt.toFixed(1)} s (${spd.toFixed(0)} m/s) — possible GPS glitch/spoof` });
+      }
+    }
+    if (prev && x.height != null && prev.height != null) {
+      const dt = x.fly_time - prev.fly_time;
+      if (dt > 0 && dt < 5 && Math.abs(x.height - prev.height) / dt > 15)
+        flags.push({ sev: "warn", t: x.fly_time, msg: `Altitude jump ${(x.height - prev.height).toFixed(1)} m in ${dt.toFixed(1)} s` });
+    }
+    if (x.voltage && x.voltage > 0 && x.voltage < 6.4)
+      flags.push({ sev: "alert", t: x.fly_time, msg: `Battery voltage critically low: ${x.voltage.toFixed(2)} V` });
+    prev = x;
+  }
+  if (gpsLossStart !== null && f.length - gpsLossStart >= 5) gpsLossCount++;
+
+  // dedupe repeated flags (keep first of each message prefix per 10s bucket)
+  const seen = new Set();
+  const uniqFlags = flags.filter(fl => {
+    const k = fl.msg.slice(0, 24) + "|" + Math.floor((fl.t || 0) / 10);
+    if (seen.has(k)) return false; seen.add(k); return true;
+  }).slice(0, 40);
+
+  // ---- flight phases ----
+  const airborne = x => x.motor_on && !x.on_ground;
+  let cur = null;
+  for (const x of f) {
+    const phase = !airborne(x) ? "Ground" : (x.mode || "").includes("Go Home") ? "Return-to-Home" : "Airborne";
+    if (!cur || cur.name !== phase) {
+      if (cur) { cur.end = x.fly_time; phases.push(cur); }
+      cur = { name: phase, start: x.fly_time, end: x.fly_time };
+    } else cur.end = x.fly_time;
+  }
+  if (cur) phases.push(cur);
+
+  // ---- summary stats ----
+  const gpsFrames = f.filter(x => x.gps_valid && x.lat);
+  const bats = f.map(x => x.battery).filter(v => v != null && v > 0 && v <= 100);
+  const temps = f.map(x => x.temperature).filter(v => v && v > 0);
+  const summary = {
+    frames: f.length,
+    duration: f.length ? f[f.length - 1].fly_time : 0,
+    maxSpeed, maxAlt: isFinite(maxAlt) ? maxAlt : 0, minAlt: isFinite(minAlt) ? minAlt : 0,
+    gpsCoverage: f.length ? (gpsFrames.length / f.length * 100) : 0,
+    gpsLossEvents: gpsLossCount,
+    batteryStart: bats[0] ?? null, batteryEnd: bats[bats.length - 1] ?? null,
+    tempMax: temps.length ? Math.max(...temps) : null,
+    distance: d.total_distance ?? null,
+    flagCount: uniqFlags.length,
+  };
+  const identity = {
+    aircraft: cleanStr(rec.aircraft_name || d.aircraft_name),
+    aircraftSn: cleanStr(rec.aircraft_sn || d.aircraft_sn),
+    cameraSn: cleanStr(rec.camera_sn || d.camera_sn),
+    rcSn: cleanStr(rec.rc_sn || d.rc_sn),
+    appVersion: cleanStr(rec.app_version || d.app_version),
+    platform: cleanStr(rec.platform),
+  };
+  return { identity, summary, flags: uniqFlags, phases };
+}
+
+function buildForensics(j) {
+  const a = analyzeFlight(j);
+  state.analysis = a;
+  const id = a.identity, s = a.summary;
+  const row = (k, v) => `<div class="row"><span>${k}</span><span>${v}</span></div>`;
+  $("forensicBody").innerHTML = `
+    <h5>Device Identity</h5>
+    ${row("Aircraft", id.aircraft)}
+    ${row("Aircraft SN", id.aircraftSn)}
+    ${row("Camera SN", id.cameraSn)}
+    ${row("RC SN", id.rcSn)}
+    ${row("App version", id.appVersion)}
+    <h5>Flight Summary</h5>
+    ${row("Duration", (s.duration / 60).toFixed(1) + " min")}
+    ${row("Distance", s.distance != null ? s.distance.toFixed(0) + " m" : "—")}
+    ${row("Max speed", s.maxSpeed.toFixed(1) + " m/s")}
+    ${row("Max height", s.maxAlt.toFixed(1) + " m")}
+    ${row("GPS coverage", s.gpsCoverage.toFixed(0) + " %")}
+    ${row("GPS loss events", s.gpsLossEvents)}
+    ${row("Battery", (s.batteryStart ?? "—") + " % → " + (s.batteryEnd ?? "—") + " %")}
+    ${row("Max batt temp", s.tempMax != null ? s.tempMax.toFixed(1) + " °C" : "—")}
+    <h5>Flight Phases</h5>
+    ${a.phases.map(p => row(p.name, (p.end - p.start).toFixed(0) + " s")).join("") || "<div class='muted'>No phases</div>"}
+    <h5>Anomaly Flags (${a.flags.length})</h5>
+    ${a.flags.length ? a.flags.map(fl =>
+      `<div class="flag flag-${fl.sev}"><b>${fl.t != null ? fl.t.toFixed(1) + "s" : ""}</b> ${fl.msg}</div>`).join("")
+      : "<div class='muted'>No anomalies detected.</div>"}`;
+}
+
+function exportForensicReport() {
+  if (!state.analysis) return;
+  const a = state.analysis, id = a.identity, s = a.summary;
+  const lines = [
+    ["DJI Flight Log — Forensic Report"],
+    ["File", state.current || ""],
+    ["Generated", new Date().toISOString()],
+    [],
+    ["DEVICE IDENTITY"],
+    ["Aircraft", id.aircraft], ["Aircraft SN", id.aircraftSn],
+    ["Camera SN", id.cameraSn], ["RC SN", id.rcSn],
+    ["App version", id.appVersion],
+    [],
+    ["FLIGHT SUMMARY"],
+    ["Frames", s.frames], ["Duration s", s.duration.toFixed(1)],
+    ["Distance m", s.distance != null ? s.distance.toFixed(1) : ""],
+    ["Max speed m/s", s.maxSpeed.toFixed(2)], ["Max height m", s.maxAlt.toFixed(1)],
+    ["GPS coverage %", s.gpsCoverage.toFixed(1)], ["GPS loss events", s.gpsLossEvents],
+    ["Battery start %", s.batteryStart ?? ""], ["Battery end %", s.batteryEnd ?? ""],
+    ["Max battery temp C", s.tempMax != null ? s.tempMax.toFixed(1) : ""],
+    [],
+    ["FLIGHT PHASES"],
+    ["Phase", "Start s", "End s", "Duration s"],
+    ...a.phases.map(p => [p.name, p.start.toFixed(1), p.end.toFixed(1), (p.end - p.start).toFixed(1)]),
+    [],
+    ["ANOMALY FLAGS"],
+    ["Severity", "Time s", "Description"],
+    ...a.flags.map(fl => [fl.sev, fl.t != null ? fl.t.toFixed(1) : "", '"' + fl.msg.replaceAll('"', "'") + '"']),
+  ];
+  const csv = lines.map(r => r.join(",")).join("\n");
+  const el = document.createElement("a");
+  el.href = "data:text/csv," + encodeURIComponent(csv);
+  el.download = (state.current || "flight").replace(/\.txt$/, "") + "_forensic_report.csv";
+  el.click();
 }
 
 /* ================= sidebar info ================= */
@@ -453,5 +615,6 @@ $("filePick").onchange = async e => {
 
 /* boot */
 initApiKeyUI();
+$("btnForensic").onclick = exportForensicReport;
 window.addEventListener("resize", () => state.data && buildPlot());
 loadLogs();

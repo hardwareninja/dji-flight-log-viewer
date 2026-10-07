@@ -118,6 +118,18 @@ select.ctl { padding: 4px; }
 .key-hint { font-size: 10.5px; color: var(--muted); margin-top: 4px; line-height: 1.45; }
 .key-hint a { color: var(--accent); text-decoration: none; }
 
+/* forensic panel */
+.forensic-body { padding: 10px 14px 14px; font-size: 12px; }
+.forensic-body h5 { margin: 12px 0 4px; color: var(--accent); font-size: 11px; letter-spacing: .5px; text-transform: uppercase; }
+.forensic-body h5:first-child { margin-top: 2px; }
+.forensic-body .row { display: flex; justify-content: space-between; gap: 16px; padding: 1px 0; max-width: 460px; }
+.forensic-body .row span:first-child { color: var(--muted); }
+.forensic-body .muted { color: var(--muted); }
+.flag { padding: 3px 8px; margin: 3px 0; border-left: 3px solid #888; background: rgba(255,255,255,.03); border-radius: 3px; max-width: 760px; }
+.flag b { color: var(--muted); margin-right: 8px; font-weight: 500; }
+.flag-warn { border-left-color: #e8a13c; }
+.flag-alert { border-left-color: #e35d5d; }
+
 .table-wrap { overflow: auto; max-height: 340px; }
 #dataTable { border-collapse: collapse; font-size: 12px; width: 100%; }
 #dataTable th, #dataTable td {
