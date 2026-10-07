@@ -1,0 +1,10 @@
+# Flight data & local caches (private)
+*.txt
+IMG_9063.jpg
+.cache/
+.keychains_*.json
+.ref/
+__pycache__/
+.venv/
+venv/
+.DS_Store

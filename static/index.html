@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DJI Flight Log Viewer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/uplot@1.6.31/dist/uPlot.min.css">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="layout">
+  <!-- ============ LEFT SIDEBAR ============ -->
+  <aside id="sidebar">
+    <div class="side-section">
+      <button id="btnLoadLog" class="btn btn-blue">Select Log .txt</button>
+      <input type="file" id="filePick" accept=".txt" hidden multiple>
+      <div class="side-title">FILES <span class="badge" id="fileCount">0</span></div>
+      <ul id="fileList" class="side-list"></ul>
+    </div>
+
+    <div class="side-section">
+      <div class="side-title collapsible">CHART COLUMNS</div>
+      <input id="colFilter" class="side-input" placeholder="Filter columns">
+      <div id="seriesBoxes" class="side-list checkboxes"></div>
+    </div>
+
+    <div class="side-section">
+      <div class="side-title collapsible">FLIGHT INFORMATION</div>
+      <div id="flightInfo" class="info-grid"></div>
+    </div>
+
+    <div class="side-section">
+      <div class="side-title collapsible">FLIGHT TIMELINE</div>
+      <ul id="timeline" class="side-list timeline"></ul>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main id="main">
+    <!-- toolbar -->
+    <div id="topbar">
+      <span id="logTitle" class="log-title">DJI Flight Log Viewer</span>
+      <span class="spacer"></span>
+      <span id="frameStats" class="muted"></span>
+      <select id="sampleSel" class="ctl">
+        <option value="1">Sample: All</option>
+        <option value="2">1/2</option>
+        <option value="5">1/5</option>
+        <option value="10">1/10</option>
+      </select>
+      <label class="ctl"><input type="checkbox" id="multiY" checked> Multi Y</label>
+      <label class="ctl"><input type="checkbox" id="showPoints"> Show Points</label>
+      <button id="btnFit" class="btn btn-dark">⟲ Reset Zoom</button>
+      <a id="btnExport" class="btn btn-dark" download="frames.json">⬇ Export JSON</a>
+    </div>
+
+    <!-- chart -->
+    <section class="panel">
+      <div class="panel-head">
+        <span class="panel-title">≡ DATA ANALYZER</span>
+        <span class="spacer"></span>
+        <div id="chartLegend" class="legend"></div>
+      </div>
+      <div id="chart" class="panel-body"></div>
+    </section>
+
+    <!-- map -->
+    <section class="panel">
+      <div class="panel-head">
+        <span class="panel-title">≡ MAP</span>
+        <span class="spacer"></span>
+        <select id="mapStyle" class="ctl">
+          <option value="sat">Esri Imagery</option>
+          <option value="osm">OpenStreetMap</option>
+          <option value="topo">OpenTopoMap</option>
+        </select>
+        <label class="ctl"><input type="checkbox" id="syncRange" checked> Sync range</label>
+        <button id="btnFitMap" class="btn btn-dark">Fit All</button>
+      </div>
+      <div id="mapWrap" class="panel-body">
+        <div id="map"></div>
+        <div id="pointDetails" class="point-details hidden"></div>
+      </div>
+    </section>
+
+    <!-- table -->
+    <section class="panel">
+      <div class="panel-head">
+        <span class="panel-title">≡ DATA VIEWER</span>
+        <span class="spacer"></span>
+        <span id="tableStats" class="muted"></span>
+        <select id="rowsSel" class="ctl">
+          <option value="50">Rows: 50</option>
+          <option value="200" selected>Rows: 200</option>
+          <option value="1000">Rows: 1000</option>
+          <option value="0">All</option>
+        </select>
+        <button id="btnCsv" class="btn btn-dark">⬇ CSV</button>
+      </div>
+      <div class="panel-body table-wrap">
+        <table id="dataTable"><thead></thead><tbody></tbody></table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toast" class="hidden"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/uplot@1.6.31/dist/uPlot.iife.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
