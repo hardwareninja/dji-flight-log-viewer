@@ -594,136 +594,194 @@ function drawSticks(x) {
   drawStick(ctx, w * 0.72, cy, r, stickNorm(x.aileron), stickNorm(x.elevator),
             "Right stick", "Aileron " + (x.aileron ?? "—"), "Elevator " + (x.elevator ?? "—"));
 }
-function motorOutputs(x) {
-  const on = !!x.motor_on;
-  const thr = stickNorm(x.throttle);
-  const base = on ? Math.max(0.08, Math.min(1, 0.48 + thr * 0.38)) : 0;
-  const roll = stickNorm(x.aileron) * 0.14;
-  const pitch = stickNorm(x.elevator) * 0.14;
-  const yaw = stickNorm(x.rudder) * 0.08;
-  return [
-    base + pitch - roll - yaw,
-    base + pitch + roll + yaw,
-    base - pitch + roll - yaw,
-    base - pitch - roll + yaw,
-  ].map(v => Math.max(0, Math.min(1, on ? v : 0)));
-}
-function projectCraft(p, pitch, roll, yaw, cx, cy) {
-  const cyaw = Math.cos(yaw), syaw = Math.sin(yaw);
-  const x1 = p.x * cyaw - p.y * syaw;
-  const y1 = p.x * syaw + p.y * cyaw;
-  const cp = Math.cos(pitch), sp = Math.sin(pitch);
-  const x2 = x1 * cp + p.z * sp;
-  const z2 = -x1 * sp + p.z * cp;
-  const cr = Math.cos(roll), sr = Math.sin(roll);
-  const y3 = y1 * cr - z2 * sr;
-  const z3 = y1 * sr + z2 * cr;
-  const scale = 320 / (4.2 - z3);
-  return { x: cx + x2 * scale, y: cy - y3 * scale, z: z3, s: scale };
+function heading360(yaw) {
+  const h = (yaw || 0) % 360;
+  return h < 0 ? h + 360 : h;
 }
 function drawAttitude(x) {
   const c = $("attitudeCanvas");
   if (!c) return;
-  state.lastSimFrame = x;
   const { ctx, w, h } = fitCanvas(c);
-  const pitch = (x.pitch || 0) * Math.PI / 180;
-  const roll = (x.roll || 0) * Math.PI / 180;
-  const yaw = (x.yaw || 0) * Math.PI / 180;
-  const cx = w * 0.5, cy = h * 0.52;
+  const pitch = x.pitch || 0;
+  const roll = x.roll || 0;
+  const hdg = heading360(x.yaw);
+  const px = Math.max(2.2, Math.min(w, h) * 0.011);
+  const cx = w * 0.5, cy = h * 0.46;
+
   ctx.clearRect(0, 0, w, h);
   ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, w, h);
+  ctx.clip();
   ctx.translate(cx, cy);
-  ctx.rotate(-roll);
-  ctx.translate(0, (x.pitch || 0) * 2.2);
-  ctx.fillStyle = "#3c88b8";
+  ctx.rotate(-roll * Math.PI / 180);
+  ctx.translate(0, Math.max(-h, Math.min(h, pitch * px)));
+  ctx.fillStyle = "#2a6f9a";
   ctx.fillRect(-w * 2, -h * 3, w * 4, h * 3);
-  ctx.fillStyle = "#6d8f45";
+  ctx.fillStyle = "#6a4a2c";
   ctx.fillRect(-w * 2, 0, w * 4, h * 3);
-  ctx.strokeStyle = "rgba(255,255,255,.85)";
+  ctx.strokeStyle = "#f4f7fb";
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(-w * 2, 0);
   ctx.lineTo(w * 2, 0);
   ctx.stroke();
+
+  ctx.font = "11px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#f4f7fb";
+  ctx.strokeStyle = "#f4f7fb";
+  for (let deg = -90; deg <= 90; deg += 10) {
+    if (deg === 0) continue;
+    const y = -deg * px;
+    const half = Math.abs(deg) % 20 === 0 ? 36 : 18;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-half, y);
+    ctx.lineTo(half, y);
+    const hook = deg > 0 ? 6 : -6;
+    ctx.moveTo(-half, y);
+    ctx.lineTo(-half, y + hook);
+    ctx.moveTo(half, y);
+    ctx.lineTo(half, y + hook);
+    ctx.stroke();
+    if (Math.abs(deg) % 20 === 0) {
+      ctx.fillText(String(Math.abs(deg)), -half - 14, y);
+      ctx.fillText(String(Math.abs(deg)), half + 14, y);
+    }
+  }
   ctx.restore();
 
-  const outputs = motorOutputs(x);
-  const layout = [
-    { x: 0.9, y: 0.9, dir: 1, color: "rgba(176,160,214,.82)", prop: "#3ddc6a" },
-    { x: 0.9, y: -0.9, dir: -1, color: "rgba(140,206,186,.82)", prop: "#ef5350" },
-    { x: -0.9, y: -0.9, dir: 1, color: "rgba(232,214,110,.82)", prop: "#3ddc6a" },
-    { x: -0.9, y: 0.9, dir: -1, color: "rgba(214,112,104,.82)", prop: "#ef5350" },
-  ];
-  const center = projectCraft({ x: 0, y: 0, z: 0 }, pitch, roll, yaw, cx, cy);
-  const motors = layout.map((m, i) => ({
-    ...m, out: outputs[i],
-    p: projectCraft({ x: m.x, y: m.y, z: 0.05 }, pitch, roll, yaw, cx, cy),
-  })).sort((a, b) => a.p.z - b.p.z);
-
-  ctx.lineCap = "round";
-  motors.forEach(m => {
-    ctx.strokeStyle = "#4a515c";
-    ctx.lineWidth = Math.max(6, m.p.s * 0.08);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-roll * Math.PI / 180);
+  ctx.strokeStyle = "#f4f7fb";
+  ctx.fillStyle = "#f4f7fb";
+  ctx.lineWidth = 2;
+  const arcR = Math.min(w, h) * 0.34;
+  ctx.beginPath();
+  ctx.arc(0, 0, arcR, -Math.PI * 0.72, -Math.PI * 0.28);
+  ctx.stroke();
+  for (const deg of [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60]) {
+    const a = (-90 - deg) * Math.PI / 180;
+    const inner = Math.abs(deg) % 30 === 0 ? arcR - 10 : arcR - 6;
     ctx.beginPath();
-    ctx.moveTo(center.x, center.y);
-    ctx.lineTo(m.p.x, m.p.y);
+    ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
+    ctx.lineTo(Math.cos(a) * arcR, Math.sin(a) * arcR);
     ctx.stroke();
-  });
+  }
+  ctx.restore();
 
-  const nose = projectCraft({ x: 0.45, y: 0, z: 0.08 }, pitch, roll, yaw, cx, cy);
-  const plate = [
-    { x: 0.28, y: 0.42, z: 0.08 },
-    { x: 0.28, y: -0.42, z: 0.08 },
-    { x: -0.38, y: -0.42, z: 0.08 },
-    { x: -0.38, y: 0.42, z: 0.08 },
-  ].map(p => projectCraft(p, pitch, roll, yaw, cx, cy));
-  ctx.fillStyle = "#2b3038";
+  ctx.fillStyle = "#f5d76e";
   ctx.beginPath();
-  ctx.moveTo(plate[0].x, plate[0].y);
-  plate.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = "#3ddc6a";
-  ctx.beginPath();
-  ctx.moveTo(nose.x, nose.y);
-  ctx.lineTo(center.x + (plate[2].x - center.x) * 0.15, center.y + (plate[2].y - center.y) * 0.15);
-  ctx.lineTo(center.x + (plate[3].x - center.x) * 0.15, center.y + (plate[3].y - center.y) * 0.15);
+  ctx.moveTo(cx, cy - Math.min(w, h) * 0.34 - 2);
+  ctx.lineTo(cx - 7, cy - Math.min(w, h) * 0.34 + 10);
+  ctx.lineTo(cx + 7, cy - Math.min(w, h) * 0.34 + 10);
   ctx.closePath();
   ctx.fill();
 
-  const spin = state.propAngle || 0;
-  motors.sort((a, b) => a.p.z - b.p.z).forEach(m => {
-    const r = Math.max(22, m.p.s * 0.5);
-    ctx.fillStyle = "#2f6fae";
+  ctx.strokeStyle = "#f5d76e";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(cx - 70, cy);
+  ctx.lineTo(cx - 22, cy);
+  ctx.moveTo(cx - 22, cy);
+  ctx.lineTo(cx - 22, cy + 8);
+  ctx.moveTo(cx + 22, cy);
+  ctx.lineTo(cx + 70, cy);
+  ctx.moveTo(cx + 22, cy);
+  ctx.lineTo(cx + 22, cy + 8);
+  ctx.stroke();
+  ctx.fillStyle = "#f5d76e";
+  ctx.fillRect(cx - 3, cy - 3, 6, 6);
+
+  const track = Math.atan2(x.vy || 0, x.vx || 0) * 180 / Math.PI;
+  const crab = ((track - hdg + 540) % 360) - 180;
+  const fpa = Math.atan2(x.vz || 0, Math.max(x.hspeed || 0.3, 0.3)) * 180 / Math.PI;
+  if ((x.hspeed || 0) > 0.4) {
+    const fx = cx + crab * px;
+    const fy = cy - fpa * px;
+    ctx.strokeStyle = "#3fb950";
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(m.p.x, m.p.y, r * 0.28, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = m.color;
+    ctx.arc(fx, fy, 7, 0, Math.PI * 2);
+    ctx.moveTo(fx - 16, fy);
+    ctx.lineTo(fx - 8, fy);
+    ctx.moveTo(fx + 8, fy);
+    ctx.lineTo(fx + 16, fy);
+    ctx.moveTo(fx, fy + 8);
+    ctx.lineTo(fx, fy + 16);
+    ctx.stroke();
+  }
+
+  const tapeW = 52;
+  ctx.fillStyle = "rgba(10,14,18,.55)";
+  ctx.fillRect(0, 0, tapeW, h);
+  ctx.fillRect(w - tapeW, 0, tapeW, h);
+  ctx.fillRect(cx - 90, h - 34, 180, 26);
+  ctx.strokeStyle = "#d6dade";
+  ctx.fillStyle = "#d6dade";
+  ctx.font = "11px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const hs = x.hspeed || 0;
+  for (let d = -4; d <= 4; d++) {
+    const v = Math.round(hs) + d;
+    if (v < 0) continue;
+    const y = cy - d * 18;
     ctx.beginPath();
-    ctx.arc(m.p.x, m.p.y, r, 0, Math.PI * 2);
-    ctx.fill();
-    const a0 = spin * m.dir * (0.35 + m.out * 2.2);
-    const sweep = 0.7 + m.out * 1.3;
-    ctx.fillStyle = m.prop;
+    ctx.moveTo(tapeW - 8, y);
+    ctx.lineTo(tapeW, y);
+    ctx.stroke();
+    if (d % 2 === 0) ctx.fillText(String(v), tapeW * 0.42, y);
+  }
+  ctx.fillStyle = "#111";
+  ctx.fillRect(2, cy - 11, tapeW - 6, 22);
+  ctx.strokeStyle = "#f5d76e";
+  ctx.strokeRect(2, cy - 11, tapeW - 6, 22);
+  ctx.fillStyle = "#f5d76e";
+  ctx.fillText(hs.toFixed(1), tapeW * 0.45, cy);
+
+  const alt = x.height || 0;
+  ctx.strokeStyle = "#d6dade";
+  ctx.fillStyle = "#d6dade";
+  for (let d = -4; d <= 4; d++) {
+    const v = Math.round(alt) + d * 2;
+    const y = cy - d * 18;
     ctx.beginPath();
-    ctx.moveTo(m.p.x, m.p.y);
-    ctx.arc(m.p.x, m.p.y, r * 0.92, a0, a0 + sweep);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#1c222b";
-    ctx.font = "bold 13px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    const label = String(Math.round(1000 + m.out * 800));
-    const lx = m.p.x + (m.p.x < cx ? -r - 22 : r + 22);
-    ctx.fillText(label, lx, m.p.y);
-  });
-}
-function spinMotors() {
-  const spinning = state.lastSimFrame && state.lastSimFrame.motor_on;
-  if (spinning) state.propAngle = (state.propAngle || 0) + 0.12;
-  if (state.lastSimFrame) drawAttitude(state.lastSimFrame);
-  requestAnimationFrame(spinMotors);
+    ctx.moveTo(w - tapeW, y);
+    ctx.lineTo(w - tapeW + 8, y);
+    ctx.stroke();
+    if (d % 2 === 0) ctx.fillText(String(v), w - tapeW * 0.48, y);
+  }
+  ctx.fillStyle = "#111";
+  ctx.fillRect(w - tapeW + 4, cy - 11, tapeW - 6, 22);
+  ctx.strokeStyle = "#f5d76e";
+  ctx.strokeRect(w - tapeW + 4, cy - 11, tapeW - 6, 22);
+  ctx.fillStyle = "#f5d76e";
+  ctx.fillText(alt.toFixed(0) + " m", w - tapeW * 0.48, cy);
+
+  const names = { 0: "N", 90: "E", 180: "S", 270: "W" };
+  ctx.fillStyle = "#d6dade";
+  ctx.strokeStyle = "#d6dade";
+  for (let d = -50; d <= 50; d += 10) {
+    const mark = (Math.round(hdg / 10) * 10 + d + 3600) % 360;
+    const shortest = ((mark - hdg + 540) % 360) - 180;
+    const xPos = cx + shortest * 2.4;
+    if (xPos < cx - 86 || xPos > cx + 86) continue;
+    ctx.beginPath();
+    ctx.moveTo(xPos, h - 34);
+    ctx.lineTo(xPos, h - 28);
+    ctx.stroke();
+    if (mark % 30 === 0) ctx.fillText(names[mark] || String(mark), xPos, h - 16);
+  }
+  ctx.fillStyle = "#111";
+  ctx.fillRect(cx - 22, h - 32, 44, 20);
+  ctx.strokeStyle = "#f5d76e";
+  ctx.strokeRect(cx - 22, h - 32, 44, 20);
+  ctx.fillStyle = "#f5d76e";
+  ctx.fillText(hdg.toFixed(0) + "°", cx, h - 22);
 }
 function drawSimulation(x, i) {
   if (!x) return;
@@ -870,4 +928,3 @@ window.addEventListener("resize", () => {
   drawSimulation(state.data.frames[i], i);
 });
 loadLogs();
-spinMotors();
