@@ -12,6 +12,10 @@ Forensic analysis and data table:
 
 ![Forensic analysis](sample-forensics.png)
 
+Stick movement and cockpit view:
+
+![Simulation](sample-simulation.png)
+
 ## Features
 
 - **Encrypted log parsing** — DJI Fly v14 logs are encrypted per-record. This parser implements the full pipeline: CRC-64 framing, XOR seed derivation, AES-128-CBC decryption with per-feature-point IV chains, and keychain retrieval via the DJI Developer API (`https://developer.dji.com/api/openapi/v1/appapi/component/info/keychain`).
