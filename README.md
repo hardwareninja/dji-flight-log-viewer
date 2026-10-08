@@ -36,7 +36,7 @@ Forensic analysis and data table:
 1. Download this repository (Code → Download ZIP) and unzip it.
 2. Double-click **`Install and Open.bat`**.
 
-The first run installs Python 3.12 if it is missing, creates a local environment, installs the Python packages, and opens <http://127.0.0.1:8080>. Leave the command window open while you use the viewer. Close that window to stop it. Later double-clicks skip the install and just open the app.
+The first run installs Python 3.12 if it is missing, creates a local environment, installs Flask and cryptography, and opens <http://127.0.0.1:8080>. Leave the command window open while you use the viewer. Close that window to stop it. Later double-clicks check that Python, Flask, and cryptography are already installed, then open the app without installing again.
 
 Paste your own DJI Developer API key into the sidebar before opening an encrypted log.
 

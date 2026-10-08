@@ -13,6 +13,21 @@ call :find_python
 if errorlevel 1 goto :install_python
 
 :have_python
+if exist ".venv\Scripts\python.exe" (
+  ".venv\Scripts\python.exe" -c "import flask, cryptography" >nul 2>&1
+  if not errorlevel 1 (
+    set "APP_PY=%~dp0.venv\Scripts\python.exe"
+    echo Python, Flask, and cryptography are already installed.
+    goto :open_app
+  )
+)
+"%PY%" -c "import flask, cryptography" >nul 2>&1
+if not errorlevel 1 (
+  set "APP_PY=%PY%"
+  echo Python, Flask, and cryptography are already installed.
+  goto :open_app
+)
+
 echo Using Python:
 "%PY%" -c "import sys; print(sys.version)"
 echo.
@@ -23,12 +38,14 @@ if not exist ".venv\Scripts\python.exe" (
   if errorlevel 1 goto :fail
 )
 
-echo Installing required packages. The first run needs an internet connection.
+echo Installing Flask and cryptography. This step needs an internet connection.
 ".venv\Scripts\python.exe" -m pip install --upgrade pip
 if errorlevel 1 goto :fail
 ".venv\Scripts\python.exe" -m pip install -r "%~dp0requirements.txt"
 if errorlevel 1 goto :fail
+set "APP_PY=%~dp0.venv\Scripts\python.exe"
 
+:open_app
 echo.
 echo Starting the viewer at http://127.0.0.1:8080
 echo Leave this window open. Closing it stops the viewer.
@@ -37,7 +54,7 @@ echo.
 start "" cmd /c "timeout /t 2 /nobreak >nul & start http://127.0.0.1:8080/"
 set "HOST=127.0.0.1"
 set "PORT=8080"
-".venv\Scripts\python.exe" "%~dp0app.py"
+"%APP_PY%" "%~dp0app.py"
 echo.
 echo The viewer has stopped.
 pause
