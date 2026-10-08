@@ -156,13 +156,20 @@ PRODUCT_TYPES = {
     47: "Mavic 3 Enterprise", 48: "Mavic 3", 52: "Mini 3 Pro",
     53: "Mavic 3 Classic", 54: "Mini 3", 58: "Mini 4 Pro", 59: "Air 3",
     60: "Avata 2", 61: "Neo", 62: "Air 3S", 63: "Mavic 4 Pro",
+    110: "Mavic 3 Classic",
+}
+
+# Names stored in some logs use DJI's internal "Magic" codename.
+AIRCRAFT_ALIASES = {
+    "Magic 3 Classic": "Mavic 3 Classic",
+    "Magic 3": "Mavic 3",
 }
 # battery cell count defaults for common series (fallback 2)
 def battery_cells(product_type: int) -> int:
-    if product_type in (7, 23, 32, 35):      # Phantom 4 family
-        return 4
+    if product_type in (7, 23, 32, 35, 45, 48, 53, 77, 84, 110):
+        return 4   # Phantom 4 family and Mavic 3 series (4S)
     if product_type in (1, 16):              # Inspire 1 / Mavic Pro
-        return 3 if product_type == 1 else 3
+        return 3
     return 2
 
 
@@ -476,6 +483,9 @@ def parse_recover(b: bytes, log_version: int) -> dict:
         n = 10 if log_version <= 7 else 16
         sn = r.take(n).split(b"\x00")[0].decode("utf-8", "replace")
         name = r.take(32).split(b"\x00")[0].decode("utf-8", "replace")
+        name = AIRCRAFT_ALIASES.get(name, name)
+        if not name and product_type in PRODUCT_TYPES:
+            name = PRODUCT_TYPES[product_type]
         ts = r.i64()
         cam_sn = r.take(n).split(b"\x00")[0].decode("utf-8", "replace")
         rc_sn = r.take(n).split(b"\x00")[0].decode("utf-8", "replace")

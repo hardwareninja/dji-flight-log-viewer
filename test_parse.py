@@ -52,3 +52,17 @@ for k in ("product", "aircraft_name", "aircraft_sn", "start_time", "total_time",
 print("frames:", len(out["frames"]))
 if out["recover"]:
     print("recover:", {k: out["recover"][k] for k in ("product", "aircraft_name", "aircraft_sn", "app_version")})
+
+if "2023-08-22" in path or (out.get("recover") or {}).get("aircraft_name") == "Mavic 3 Classic":
+    rec = out["recover"] or {}
+    frames = out["frames"]
+    assert rec.get("aircraft_name") == "Mavic 3 Classic", rec.get("aircraft_name")
+    assert rec.get("product_type") == 110
+    assert len(frames) == 6715
+    assert all(f.get("gps_valid") and f.get("lat") for f in frames)
+    assert 1300 < (d.get("total_time") or 0) < 1400
+    volts = [f["voltage"] for f in frames if f.get("voltage")]
+    assert volts and min(volts) > 14 and max(volts) < 18
+    assert frames[0]["battery"] >= 90 and frames[-1]["battery"] <= 40
+    print("mavic 3 classic checks ok:", len(frames), "frames,",
+          f"{d.get('total_time'):.0f}s, battery {frames[0]['battery']}%→{frames[-1]['battery']}%")
