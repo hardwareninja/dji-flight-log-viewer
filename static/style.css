@@ -136,6 +136,19 @@ select.ctl { padding: 4px; }
 .flag-warn { border-left-color: #e8a13c; }
 .flag-alert { border-left-color: #e35d5d; }
 
+/* simulation */
+.sim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px; }
+.sim-field { background: #1a1e24; border-radius: 6px; overflow: hidden; }
+.sim-label {
+  padding: 6px 10px 0; font-size: 11px; font-weight: 700;
+  letter-spacing: .4px; color: var(--muted);
+}
+.sim-field canvas { width: 100%; height: 280px; display: block; }
+.scrub { width: 180px; accent-color: var(--blue); }
+@media (max-width: 900px) {
+  .sim-grid { grid-template-columns: 1fr; }
+}
+
 .table-wrap { overflow: auto; max-height: 340px; }
 #dataTable { border-collapse: collapse; font-size: 12px; width: 100%; }
 #dataTable th, #dataTable td {

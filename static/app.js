@@ -30,6 +30,7 @@ const state = {
   plot: null, uplot: null,
   map: null, track: null, marker: null, tiles: null,
   view: { i0: 0, i1: Infinity },
+  playing: false, playTimer: null, simTime: 0,
 };
 
 const $ = id => document.getElementById(id);
@@ -97,6 +98,8 @@ function initApiKeyUI() {
 }
 
 async function openLog(name) {
+  stopPlay();
+  state.simTime = 0;
   state.current = name;
   renderFileList();
   $("logTitle").textContent = name;
@@ -524,10 +527,200 @@ function showPoint(i) {
   if (state.marker && x.lat != null && (x.lat !== 0 || x.lon !== 0)) {
     state.marker.setLatLng([x.lat, x.lon]);
   }
+  drawSimulation(x, i);
 }
 function startPlus(ft) {
   const st = (state.data.details || {}).start_time;
   return st ? fmtTime(st + (ft || 0)) : "—";
+}
+
+/* ================= stick + attitude simulation ================= */
+function stickNorm(v) {
+  if (v == null) return 0;
+  return Math.max(-1, Math.min(1, (v - 1024) / 660));
+}
+function fitCanvas(c) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth || 480;
+  const h = c.clientHeight || 280;
+  if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+    c.width = Math.round(w * dpr);
+    c.height = Math.round(h * dpr);
+  }
+  const ctx = c.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w, h };
+}
+function drawStick(ctx, cx, cy, r, nx, ny, title, hLabel, vLabel) {
+  ctx.fillStyle = "#2a3140";
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#4a5568";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy);
+  ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r);
+  ctx.stroke();
+  const x = cx + nx * r * 0.82;
+  const y = cy - ny * r * 0.82;
+  ctx.strokeStyle = "#58a6ff";
+  ctx.beginPath();
+  ctx.moveTo(cx, cy); ctx.lineTo(x, y);
+  ctx.stroke();
+  ctx.fillStyle = "#d6dade";
+  ctx.beginPath();
+  ctx.arc(x, y, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#8b929b";
+  ctx.font = "11px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(title, cx, cy + r + 16);
+  ctx.font = "10px sans-serif";
+  ctx.fillText(hLabel, cx, cy + r + 30);
+  ctx.fillText(vLabel, cx, cy - r - 8);
+}
+function drawSticks(x) {
+  const c = $("stickCanvas");
+  if (!c) return;
+  const { ctx, w, h } = fitCanvas(c);
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#1a1e24";
+  ctx.fillRect(0, 0, w, h);
+  const r = Math.min(w * 0.16, h * 0.32);
+  const cy = h * 0.46;
+  drawStick(ctx, w * 0.28, cy, r, stickNorm(x.rudder), stickNorm(x.throttle),
+            "Left stick", "Rudder " + (x.rudder ?? "—"), "Throttle " + (x.throttle ?? "—"));
+  drawStick(ctx, w * 0.72, cy, r, stickNorm(x.aileron), stickNorm(x.elevator),
+            "Right stick", "Aileron " + (x.aileron ?? "—"), "Elevator " + (x.elevator ?? "—"));
+}
+function drawAttitude(x) {
+  const c = $("attitudeCanvas");
+  if (!c) return;
+  const { ctx, w, h } = fitCanvas(c);
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#1a1e24";
+  ctx.fillRect(0, 0, w, h);
+  const pitch = x.pitch || 0, roll = x.roll || 0, yaw = x.yaw || 0;
+  const cx = w * 0.30, cy = h * 0.46;
+  const R = Math.min(w * 0.22, h * 0.34);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.translate(cx, cy);
+  ctx.rotate(-roll * Math.PI / 180);
+  ctx.translate(0, Math.max(-R, Math.min(R, pitch * 2.4)));
+  ctx.fillStyle = "#3d7ea6";
+  ctx.fillRect(-R * 3, -R * 4, R * 6, R * 4);
+  ctx.fillStyle = "#6b5332";
+  ctx.fillRect(-R * 3, 0, R * 6, R * 4);
+  ctx.strokeStyle = "#e8eef4";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-R * 3, 0); ctx.lineTo(R * 3, 0);
+  ctx.stroke();
+  ctx.restore();
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.strokeStyle = "#8b929b";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.strokeStyle = "#f5d76e";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(cx - R * 0.72, cy); ctx.lineTo(cx - R * 0.22, cy);
+  ctx.moveTo(cx + R * 0.22, cy); ctx.lineTo(cx + R * 0.72, cy);
+  ctx.moveTo(cx, cy - 4); ctx.lineTo(cx, cy + R * 0.28);
+  ctx.stroke();
+
+  const hx = w * 0.68, hy = h * 0.42, Hr = Math.min(w * 0.13, h * 0.28);
+  ctx.beginPath();
+  ctx.arc(hx, hy, Hr, 0, Math.PI * 2);
+  ctx.strokeStyle = "#4a5568";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = "#8b929b";
+  ctx.font = "10px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("N", hx, hy - Hr - 4);
+  ctx.save();
+  ctx.translate(hx, hy);
+  ctx.rotate(yaw * Math.PI / 180);
+  ctx.fillStyle = "#58a6ff";
+  ctx.beginPath();
+  ctx.moveTo(0, -Hr * 0.72);
+  ctx.lineTo(Hr * 0.28, Hr * 0.45);
+  ctx.lineTo(0, Hr * 0.22);
+  ctx.lineTo(-Hr * 0.28, Hr * 0.45);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+  const hs = x.hspeed || 0;
+  const track = Math.atan2(x.vy || 0, x.vx || 0);
+  if (hs > 0.2) {
+    const len = Math.min(Hr * 0.95, (hs / 12) * Hr);
+    ctx.strokeStyle = "#3fb950";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(hx, hy);
+    ctx.lineTo(hx + Math.sin(track) * len, hy - Math.cos(track) * len);
+    ctx.stroke();
+  }
+  ctx.fillStyle = "#d6dade";
+  ctx.font = "12px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(
+    `Pitch ${pitch.toFixed(1)}°   Roll ${roll.toFixed(1)}°   Yaw ${yaw.toFixed(1)}°`,
+    8, h - 28);
+  ctx.fillText(
+    `H-speed ${(x.hspeed || 0).toFixed(1)} m/s   V-speed ${(x.vz || 0).toFixed(1)} m/s`,
+    8, h - 12);
+}
+function drawSimulation(x, i) {
+  if (!x) return;
+  drawSticks(x);
+  drawAttitude(x);
+  const scrub = $("playScrub");
+  const n = state.data && state.data.frames ? state.data.frames.length : 0;
+  if (scrub && n) {
+    scrub.max = String(n - 1);
+    if (document.activeElement !== scrub) scrub.value = String(i);
+  }
+  const ft = x.fly_time || 0;
+  const m = Math.floor(ft / 60), s = Math.floor(ft % 60);
+  if ($("playTime")) $("playTime").textContent = `${m}:${String(s).padStart(2, "0")}`;
+  state.simTime = ft;
+}
+function stopPlay() {
+  state.playing = false;
+  if (state.playTimer) cancelAnimationFrame(state.playTimer);
+  state.playTimer = null;
+  const b = $("btnPlay");
+  if (b) b.textContent = "▶ Play";
+}
+function playStep(ts) {
+  if (!state.playing || !state.data) return;
+  if (!state.playLast) state.playLast = ts;
+  const dt = Math.min(0.1, (ts - state.playLast) / 1000);
+  state.playLast = ts;
+  const speed = +$("playSpeed").value || 1;
+  const frames = state.data.frames;
+  const end = frames[frames.length - 1].fly_time || 0;
+  state.simTime += dt * speed;
+  if (state.simTime > end) state.simTime = 0;
+  let i = 0;
+  while (i < frames.length - 1 && (frames[i].fly_time || 0) < state.simTime) i++;
+  showPoint(i);
+  state.playTimer = requestAnimationFrame(playStep);
+}
+function togglePlay() {
+  if (!state.data) return;
+  if (state.playing) { stopPlay(); return; }
+  state.playing = true;
+  state.playLast = 0;
+  $("btnPlay").textContent = "⏸ Pause";
+  state.playTimer = requestAnimationFrame(playStep);
 }
 
 /* ================= table ================= */
@@ -616,5 +809,16 @@ $("filePick").onchange = async e => {
 /* boot */
 initApiKeyUI();
 $("btnForensic").onclick = exportForensicReport;
-window.addEventListener("resize", () => state.data && buildPlot());
+$("btnPlay").onclick = togglePlay;
+$("playScrub").oninput = () => {
+  if (!state.data) return;
+  stopPlay();
+  showPoint(+$("playScrub").value);
+};
+window.addEventListener("resize", () => {
+  if (!state.data) return;
+  buildPlot();
+  const i = +$("playScrub").value || 0;
+  drawSimulation(state.data.frames[i], i);
+});
 loadLogs();

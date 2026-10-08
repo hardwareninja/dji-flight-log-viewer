@@ -96,6 +96,33 @@
       </div>
     </section>
 
+    <!-- simulation -->
+    <section class="panel">
+      <div class="panel-head">
+        <span class="panel-title">SIMULATION</span>
+        <span class="spacer"></span>
+        <button id="btnPlay" class="btn btn-dark">▶ Play</button>
+        <select id="playSpeed" class="ctl">
+          <option value="1">1×</option>
+          <option value="2">2×</option>
+          <option value="4" selected>4×</option>
+          <option value="8">8×</option>
+        </select>
+        <input id="playScrub" type="range" min="0" max="0" value="0" class="scrub">
+        <span id="playTime" class="muted">0:00</span>
+      </div>
+      <div class="sim-grid">
+        <div class="sim-field">
+          <div class="sim-label">REMOTE CONTROLLER</div>
+          <canvas id="stickCanvas"></canvas>
+        </div>
+        <div class="sim-field">
+          <div class="sim-label">AIRCRAFT ATTITUDE</div>
+          <canvas id="attitudeCanvas"></canvas>
+        </div>
+      </div>
+    </section>
+
     <!-- forensics -->
     <section class="panel">
       <div class="panel-head">
