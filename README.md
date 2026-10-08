@@ -176,4 +176,4 @@ static/              UI (index.html, style.css, app.js)
 
 ## Log compatibility
 
-Tested with v14 logs from **DJI Mini 3 Pro**, **DJI Neo**, and **Mavic 3 Classic** (`DJIFlightRecord_2023-08-22_[11-25-16].txt` on the viewer machine). The log stores the aircraft as “Magic 3 Classic”; the parser shows it as Mavic 3 Classic. The Neo has no GPS, so map view is gracefully skipped for such logs.
+Tested with v14 logs from **DJI Mini 3 Pro**, **DJI Neo**, and **Mavic 3 Classic**. The Mavic 3 Classic log stores the aircraft as “Magic 3 Classic”; the parser shows it as Mavic 3 Classic. The Neo has no GPS, so map view is gracefully skipped for such logs.
