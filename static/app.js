@@ -594,88 +594,194 @@ function drawSticks(x) {
   drawStick(ctx, w * 0.72, cy, r, stickNorm(x.aileron), stickNorm(x.elevator),
             "Right stick", "Aileron " + (x.aileron ?? "—"), "Elevator " + (x.elevator ?? "—"));
 }
+function heading360(yaw) {
+  const h = (yaw || 0) % 360;
+  return h < 0 ? h + 360 : h;
+}
 function drawAttitude(x) {
   const c = $("attitudeCanvas");
   if (!c) return;
   const { ctx, w, h } = fitCanvas(c);
+  const pitch = x.pitch || 0;
+  const roll = x.roll || 0;
+  const hdg = heading360(x.yaw);
+  const px = Math.max(2.2, Math.min(w, h) * 0.011);
+  const cx = w * 0.5, cy = h * 0.46;
+
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = "#1a1e24";
-  ctx.fillRect(0, 0, w, h);
-  const pitch = x.pitch || 0, roll = x.roll || 0, yaw = x.yaw || 0;
-  const cx = w * 0.30, cy = h * 0.46;
-  const R = Math.min(w * 0.22, h * 0.34);
   ctx.save();
   ctx.beginPath();
-  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.rect(0, 0, w, h);
   ctx.clip();
   ctx.translate(cx, cy);
   ctx.rotate(-roll * Math.PI / 180);
-  ctx.translate(0, Math.max(-R, Math.min(R, pitch * 2.4)));
-  ctx.fillStyle = "#3d7ea6";
-  ctx.fillRect(-R * 3, -R * 4, R * 6, R * 4);
-  ctx.fillStyle = "#6b5332";
-  ctx.fillRect(-R * 3, 0, R * 6, R * 4);
-  ctx.strokeStyle = "#e8eef4";
+  ctx.translate(0, Math.max(-h, Math.min(h, pitch * px)));
+  ctx.fillStyle = "#2a6f9a";
+  ctx.fillRect(-w * 2, -h * 3, w * 4, h * 3);
+  ctx.fillStyle = "#6a4a2c";
+  ctx.fillRect(-w * 2, 0, w * 4, h * 3);
+  ctx.strokeStyle = "#f4f7fb";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(-R * 3, 0); ctx.lineTo(R * 3, 0);
+  ctx.moveTo(-w * 2, 0);
+  ctx.lineTo(w * 2, 0);
   ctx.stroke();
+
+  ctx.font = "11px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#f4f7fb";
+  ctx.strokeStyle = "#f4f7fb";
+  for (let deg = -90; deg <= 90; deg += 10) {
+    if (deg === 0) continue;
+    const y = -deg * px;
+    const half = Math.abs(deg) % 20 === 0 ? 36 : 18;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-half, y);
+    ctx.lineTo(half, y);
+    const hook = deg > 0 ? 6 : -6;
+    ctx.moveTo(-half, y);
+    ctx.lineTo(-half, y + hook);
+    ctx.moveTo(half, y);
+    ctx.lineTo(half, y + hook);
+    ctx.stroke();
+    if (Math.abs(deg) % 20 === 0) {
+      ctx.fillText(String(Math.abs(deg)), -half - 14, y);
+      ctx.fillText(String(Math.abs(deg)), half + 14, y);
+    }
+  }
   ctx.restore();
-  ctx.beginPath();
-  ctx.arc(cx, cy, R, 0, Math.PI * 2);
-  ctx.strokeStyle = "#8b929b";
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-roll * Math.PI / 180);
+  ctx.strokeStyle = "#f4f7fb";
+  ctx.fillStyle = "#f4f7fb";
   ctx.lineWidth = 2;
+  const arcR = Math.min(w, h) * 0.34;
+  ctx.beginPath();
+  ctx.arc(0, 0, arcR, -Math.PI * 0.72, -Math.PI * 0.28);
   ctx.stroke();
+  for (const deg of [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60]) {
+    const a = (-90 - deg) * Math.PI / 180;
+    const inner = Math.abs(deg) % 30 === 0 ? arcR - 10 : arcR - 6;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
+    ctx.lineTo(Math.cos(a) * arcR, Math.sin(a) * arcR);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.fillStyle = "#f5d76e";
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - Math.min(w, h) * 0.34 - 2);
+  ctx.lineTo(cx - 7, cy - Math.min(w, h) * 0.34 + 10);
+  ctx.lineTo(cx + 7, cy - Math.min(w, h) * 0.34 + 10);
+  ctx.closePath();
+  ctx.fill();
+
   ctx.strokeStyle = "#f5d76e";
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(cx - R * 0.72, cy); ctx.lineTo(cx - R * 0.22, cy);
-  ctx.moveTo(cx + R * 0.22, cy); ctx.lineTo(cx + R * 0.72, cy);
-  ctx.moveTo(cx, cy - 4); ctx.lineTo(cx, cy + R * 0.28);
+  ctx.moveTo(cx - 70, cy);
+  ctx.lineTo(cx - 22, cy);
+  ctx.moveTo(cx - 22, cy);
+  ctx.lineTo(cx - 22, cy + 8);
+  ctx.moveTo(cx + 22, cy);
+  ctx.lineTo(cx + 70, cy);
+  ctx.moveTo(cx + 22, cy);
+  ctx.lineTo(cx + 22, cy + 8);
   ctx.stroke();
+  ctx.fillStyle = "#f5d76e";
+  ctx.fillRect(cx - 3, cy - 3, 6, 6);
 
-  const hx = w * 0.68, hy = h * 0.42, Hr = Math.min(w * 0.13, h * 0.28);
-  ctx.beginPath();
-  ctx.arc(hx, hy, Hr, 0, Math.PI * 2);
-  ctx.strokeStyle = "#4a5568";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.fillStyle = "#8b929b";
-  ctx.font = "10px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("N", hx, hy - Hr - 4);
-  ctx.save();
-  ctx.translate(hx, hy);
-  ctx.rotate(yaw * Math.PI / 180);
-  ctx.fillStyle = "#58a6ff";
-  ctx.beginPath();
-  ctx.moveTo(0, -Hr * 0.72);
-  ctx.lineTo(Hr * 0.28, Hr * 0.45);
-  ctx.lineTo(0, Hr * 0.22);
-  ctx.lineTo(-Hr * 0.28, Hr * 0.45);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-  const hs = x.hspeed || 0;
-  const track = Math.atan2(x.vy || 0, x.vx || 0);
-  if (hs > 0.2) {
-    const len = Math.min(Hr * 0.95, (hs / 12) * Hr);
+  const track = Math.atan2(x.vy || 0, x.vx || 0) * 180 / Math.PI;
+  const crab = ((track - hdg + 540) % 360) - 180;
+  const fpa = Math.atan2(x.vz || 0, Math.max(x.hspeed || 0.3, 0.3)) * 180 / Math.PI;
+  if ((x.hspeed || 0) > 0.4) {
+    const fx = cx + crab * px;
+    const fy = cy - fpa * px;
     ctx.strokeStyle = "#3fb950";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(hx, hy);
-    ctx.lineTo(hx + Math.sin(track) * len, hy - Math.cos(track) * len);
+    ctx.arc(fx, fy, 7, 0, Math.PI * 2);
+    ctx.moveTo(fx - 16, fy);
+    ctx.lineTo(fx - 8, fy);
+    ctx.moveTo(fx + 8, fy);
+    ctx.lineTo(fx + 16, fy);
+    ctx.moveTo(fx, fy + 8);
+    ctx.lineTo(fx, fy + 16);
     ctx.stroke();
   }
+
+  const tapeW = 52;
+  ctx.fillStyle = "rgba(10,14,18,.55)";
+  ctx.fillRect(0, 0, tapeW, h);
+  ctx.fillRect(w - tapeW, 0, tapeW, h);
+  ctx.fillRect(cx - 90, h - 34, 180, 26);
+  ctx.strokeStyle = "#d6dade";
   ctx.fillStyle = "#d6dade";
-  ctx.font = "12px sans-serif";
-  ctx.textAlign = "left";
-  ctx.fillText(
-    `Pitch ${pitch.toFixed(1)}°   Roll ${roll.toFixed(1)}°   Yaw ${yaw.toFixed(1)}°`,
-    8, h - 28);
-  ctx.fillText(
-    `H-speed ${(x.hspeed || 0).toFixed(1)} m/s   V-speed ${(x.vz || 0).toFixed(1)} m/s`,
-    8, h - 12);
+  ctx.font = "11px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const hs = x.hspeed || 0;
+  for (let d = -4; d <= 4; d++) {
+    const v = Math.round(hs) + d;
+    if (v < 0) continue;
+    const y = cy - d * 18;
+    ctx.beginPath();
+    ctx.moveTo(tapeW - 8, y);
+    ctx.lineTo(tapeW, y);
+    ctx.stroke();
+    if (d % 2 === 0) ctx.fillText(String(v), tapeW * 0.42, y);
+  }
+  ctx.fillStyle = "#111";
+  ctx.fillRect(2, cy - 11, tapeW - 6, 22);
+  ctx.strokeStyle = "#f5d76e";
+  ctx.strokeRect(2, cy - 11, tapeW - 6, 22);
+  ctx.fillStyle = "#f5d76e";
+  ctx.fillText(hs.toFixed(1), tapeW * 0.45, cy);
+
+  const alt = x.height || 0;
+  ctx.strokeStyle = "#d6dade";
+  ctx.fillStyle = "#d6dade";
+  for (let d = -4; d <= 4; d++) {
+    const v = Math.round(alt) + d * 2;
+    const y = cy - d * 18;
+    ctx.beginPath();
+    ctx.moveTo(w - tapeW, y);
+    ctx.lineTo(w - tapeW + 8, y);
+    ctx.stroke();
+    if (d % 2 === 0) ctx.fillText(String(v), w - tapeW * 0.48, y);
+  }
+  ctx.fillStyle = "#111";
+  ctx.fillRect(w - tapeW + 4, cy - 11, tapeW - 6, 22);
+  ctx.strokeStyle = "#f5d76e";
+  ctx.strokeRect(w - tapeW + 4, cy - 11, tapeW - 6, 22);
+  ctx.fillStyle = "#f5d76e";
+  ctx.fillText(alt.toFixed(0) + " m", w - tapeW * 0.48, cy);
+
+  const names = { 0: "N", 90: "E", 180: "S", 270: "W" };
+  ctx.fillStyle = "#d6dade";
+  ctx.strokeStyle = "#d6dade";
+  for (let d = -50; d <= 50; d += 10) {
+    const mark = (Math.round(hdg / 10) * 10 + d + 3600) % 360;
+    const shortest = ((mark - hdg + 540) % 360) - 180;
+    const xPos = cx + shortest * 2.4;
+    if (xPos < cx - 86 || xPos > cx + 86) continue;
+    ctx.beginPath();
+    ctx.moveTo(xPos, h - 34);
+    ctx.lineTo(xPos, h - 28);
+    ctx.stroke();
+    if (mark % 30 === 0) ctx.fillText(names[mark] || String(mark), xPos, h - 16);
+  }
+  ctx.fillStyle = "#111";
+  ctx.fillRect(cx - 22, h - 32, 44, 20);
+  ctx.strokeStyle = "#f5d76e";
+  ctx.strokeRect(cx - 22, h - 32, 44, 20);
+  ctx.fillStyle = "#f5d76e";
+  ctx.fillText(hdg.toFixed(0) + "°", cx, h - 22);
 }
 function drawSimulation(x, i) {
   if (!x) return;
