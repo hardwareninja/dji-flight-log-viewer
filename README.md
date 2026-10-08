@@ -31,15 +31,24 @@ Forensic analysis and data table:
 | RC sticks, switches | RC records |
 | Flight events (power on, motors, take-off, landing) | Details/Aux records |
 
-## Setup
+## Windows — one click
+
+1. Download this repository (Code → Download ZIP) and unzip it.
+2. Double-click **`Install and Open.bat`**.
+
+The first run installs Python 3.12 if it is missing, creates a local environment, installs the Python packages, and opens <http://127.0.0.1:8080>. Leave the command window open while you use the viewer. Close that window to stop it. Later double-clicks skip the install and just open the app.
+
+Paste your own DJI Developer API key into the sidebar before opening an encrypted log.
+
+## Setup (macOS / Linux)
 
 ```bash
 python -m venv .venv
-.venv/bin/pip install flask cryptography
+.venv/bin/pip install -r requirements.txt
 .venv/bin/python app.py
 ```
 
-Then open <http://127.0.0.1:8080>.
+Then open <http://127.0.0.1:8080>. On Linux you can also run `sudo ./install.sh`.
 
 ## DJI API key
 
@@ -53,8 +62,11 @@ The key is never embedded in the code. Log files are decrypted locally and are *
 ## Files
 
 ```
+Install and Open.bat Windows one-click setup and launcher
+install.sh           Linux installer
 app.py               Flask server + on-disk cache
 dji_log_parser.py    Core parser (CRC-64, XOR/AES, keychain API, record decoding)
+requirements.txt     Python packages
 static/              UI (index.html, style.css, app.js)
 ```
 
