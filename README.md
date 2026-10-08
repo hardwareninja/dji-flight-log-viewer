@@ -40,15 +40,115 @@ The first run installs Python 3.12 if it is missing, creates a local environment
 
 Paste your own DJI Developer API key into the sidebar before opening an encrypted log.
 
-## Setup (macOS / Linux)
+## macOS and Linux — step by step
+
+These steps use the Terminal. On macOS open **Terminal** from Applications → Utilities, or press Command–Space and type `Terminal`. On Linux open the program named **Terminal**.
+
+You need **Python 3.10 or newer**. The viewer’s packages (Flask and cryptography) are installed inside a **virtual environment**: a private folder named `.venv` in this project, so they do not change the rest of the computer.
+
+### 1. Get the project
+
+Download the ZIP from this repository (Code → Download ZIP), unzip it, and move into that folder. The folder name below is an example; use the name you actually unzipped.
 
 ```bash
-python -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python app.py
+cd ~/Downloads/dji-flight-log-viewer-main
 ```
 
-Then open <http://127.0.0.1:8080>. On Linux you can also run `sudo ./install.sh`.
+`cd` means “change directory”. `ls` lists the files. You should see `app.py` and `requirements.txt`.
+
+```bash
+ls
+```
+
+### 2. Check whether Python is already installed
+
+```bash
+python3 --version
+```
+
+If this prints `Python 3.10` or a higher number, such as `Python 3.12.6`, skip to step 3.
+
+If the command is not found, or the version is older than 3.10, install Python:
+
+**macOS** (uses [Homebrew](https://brew.sh)). If `brew` is not found, install Homebrew from that page first, then:
+
+```bash
+brew install python@3.12
+python3 --version
+```
+
+**Debian, Ubuntu, or Kali:**
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip
+python3 --version
+```
+
+`sudo` asks for your login password. The password does not appear as you type. `python3-venv` is required; without it, the next step fails with `No module named venv`.
+
+**Fedora:**
+
+```bash
+sudo dnf install -y python3
+python3 --version
+```
+
+### 3. Create the virtual environment
+
+Run this once, from the project folder:
+
+```bash
+python3 -m venv .venv
+```
+
+That creates a `.venv` folder. Nothing is installed for the viewer yet.
+
+Turn the environment on for this Terminal window:
+
+```bash
+source .venv/bin/activate
+```
+
+The start of the line changes to `(.venv)`. Commands typed after this use the environment’s Python. Opening a new Terminal window turns it off again; run `source .venv/bin/activate` in the project folder to turn it back on.
+
+### 4. Install Flask and cryptography
+
+Still inside `(.venv)`:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+The first run downloads the packages and needs an internet connection. When it finishes, check them:
+
+```bash
+python -c "import flask, cryptography; print('ready', flask.__version__)"
+```
+
+`ready` plus a version number means the install worked.
+
+### 5. Start the viewer
+
+```bash
+python app.py
+```
+
+Leave this Terminal window open. Open a browser at <http://127.0.0.1:8080>. Paste your own DJI Developer API key into the sidebar before opening an encrypted log. Press **Control–C** in the Terminal to stop the viewer.
+
+### Later visits
+
+If Python, Flask, and cryptography are already installed, do not repeat steps 2–4. From the project folder:
+
+```bash
+source .venv/bin/activate
+python app.py
+```
+
+Then open <http://127.0.0.1:8080> again.
+
+On Debian, Ubuntu, or Kali, `sudo ./install.sh` does steps 2–5 in one command and listens on every network interface at port 8080.
 
 ## DJI API key
 
