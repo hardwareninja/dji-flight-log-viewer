@@ -102,10 +102,12 @@
         <span class="panel-title">SIMULATION</span>
         <span class="spacer"></span>
         <button id="btnPlay" class="btn btn-dark">▶ Play</button>
-        <select id="playSpeed" class="ctl">
-          <option value="1">1×</option>
+        <select id="playSpeed" class="ctl" title="1× plays the flight in real minutes and seconds">
+          <option value="0.25">¼× slow</option>
+          <option value="0.5">½× slow</option>
+          <option value="1" selected>1× real time</option>
           <option value="2">2×</option>
-          <option value="4" selected>4×</option>
+          <option value="4">4×</option>
           <option value="8">8×</option>
         </select>
         <input id="playScrub" type="range" min="0" max="0" value="0" class="scrub">

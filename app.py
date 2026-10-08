@@ -93,6 +93,7 @@ def parse_cached(name: str, api_key: str = "") -> dict:
         "recover": _clean(built["recover"]),
         "frames": built["frames"],
     }
+    os.makedirs(CACHE_DIR, exist_ok=True)
     with open(cpath, "w") as f:
         json.dump({"mtime": st.st_mtime, "size": st.st_size,
                    "keychains": chains, "data": payload}, f)
@@ -184,6 +185,7 @@ def api_upload():
         parse_cached(name, api_key=api_key)
     except Exception as exc:  # noqa: BLE001
         os.remove(dest)
+        print(f"upload failed for {name}: {exc}", flush=True)
         resp = _need_key_response(exc)
         if resp:
             return resp

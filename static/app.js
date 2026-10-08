@@ -783,6 +783,15 @@ function drawAttitude(x) {
   ctx.fillStyle = "#f5d76e";
   ctx.fillText(hdg.toFixed(0) + "°", cx, h - 22);
 }
+function fmtPlayClock(ft) {
+  const t = Math.max(0, ft || 0);
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  const slow = (+$("playSpeed").value || 1) < 1;
+  if (!slow) return `${m}:${String(s).padStart(2, "0")}`;
+  const tenth = Math.floor((t % 1) * 10);
+  return `${m}:${String(s).padStart(2, "0")}.${tenth}`;
+}
 function drawSimulation(x, i) {
   if (!x) return;
   drawSticks(x);
@@ -794,12 +803,12 @@ function drawSimulation(x, i) {
     if (document.activeElement !== scrub) scrub.value = String(i);
   }
   const ft = x.fly_time || 0;
-  const m = Math.floor(ft / 60), s = Math.floor(ft % 60);
-  if ($("playTime")) $("playTime").textContent = `${m}:${String(s).padStart(2, "0")}`;
-  state.simTime = ft;
+  if (!state.playing) state.simTime = ft;
+  if ($("playTime")) $("playTime").textContent = fmtPlayClock(state.playing ? state.simTime : ft);
 }
 function stopPlay() {
   state.playing = false;
+  state.playLast = 0;
   if (state.playTimer) cancelAnimationFrame(state.playTimer);
   state.playTimer = null;
   const b = $("btnPlay");
