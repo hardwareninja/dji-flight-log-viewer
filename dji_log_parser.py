@@ -21,7 +21,10 @@ from __future__ import annotations
 import base64
 import json
 import math
+import os
+import ssl
 import struct
+import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 
@@ -195,13 +198,40 @@ def rad2deg(x: float) -> float:
 KEYCHAIN_ENDPOINT = "https://dev.dji.com/openapi/v1/flight-records/keychains"
 
 
+def _dji_ssl_context() -> ssl.SSLContext:
+    """CA context for the keychain call.  certifi's bundle is more reliable
+    than the Windows system store on machines with outdated root certs."""
+    try:
+        import certifi  # type: ignore
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
+
+
 def fetch_keychains(api_key: str, request_body: dict, endpoint: str = KEYCHAIN_ENDPOINT) -> list:
     body = json.dumps(request_body).encode()
     req = urllib.request.Request(
         endpoint, data=body, method="POST",
         headers={"Content-Type": "application/json", "Api-Key": api_key},
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    try:
+        resp = urllib.request.urlopen(req, timeout=30, context=_dji_ssl_context())
+    except urllib.error.HTTPError as exc:
+        detail = exc.read()
+        try:
+            msg = json.loads(detail).get("result", {}).get("msg") or str(exc)
+        except Exception:
+            msg = str(exc)
+        raise RuntimeError(f"DJI keychain API error: {msg} (check your DJI API key)") from exc
+    except urllib.error.URLError as exc:
+        if "CERTIFICATE_VERIFY_FAILED" not in str(exc) or os.environ.get("DJI_TLS_STRICT") == "1":
+            raise RuntimeError(f"cannot reach the DJI keychain service: {exc}") from exc
+        print("WARNING: TLS certificate verification for the DJI keychain service failed "
+              "(often a proxy, antivirus HTTPS filter, or outdated Windows root certificates). "
+              "Retrying once without certificate verification.", flush=True)
+        resp = urllib.request.urlopen(req, timeout=30,
+                                      context=ssl._create_unverified_context())
+    with resp:
         payload = json.loads(resp.read())
     result = payload.get("result", {})
     if result.get("code", -1) != 0:

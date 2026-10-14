@@ -40,9 +40,13 @@ Stick movement and cockpit view:
 1. Download this repository (Code → Download ZIP) and unzip it.
 2. Double-click **`Install and Open.bat`**.
 
-The first run installs Python 3.12 if it is missing, creates a local environment, installs Flask and cryptography, and opens <http://127.0.0.1:8080>. Leave the command window open while you use the viewer. Close that window to stop it. Later double-clicks check that Python, Flask, and cryptography are already installed, then open the app without installing again.
+The first run installs Python 3.12 if it is missing, creates a local environment, installs Flask and cryptography, and opens <http://127.0.0.1:8080>. Leave the command window open while you use the viewer. Close that window to stop it. Later double-clicks check that Python, Flask, cryptography, and certifi are already installed, then open the app without installing again.
 
 Paste your own DJI Developer API key into the sidebar before opening an encrypted log.
+
+## Troubleshooting
+
+**Upload fails with `CERTIFICATE_VERIFY_FAILED` (Windows)** — the viewer must contact DJI over HTTPS (`dev.dji.com`) to obtain the decryption keys for an encrypted log. On some Windows machines Python cannot verify DJI's certificate because of a proxy, an antivirus HTTPS filter, or outdated Windows root certificates. The viewer now uses its own certificate bundle (certifi) and retries the call once when verification fails. In the window that opens you will see `Retrying once without certificate verification` and the log then opens normally. To require strict certificate checking instead, set the environment variable `DJI_TLS_STRICT=1` before starting.
 
 ## macOS and Linux — step by step
 

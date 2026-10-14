@@ -14,14 +14,14 @@ if errorlevel 1 goto :install_python
 
 :have_python
 if exist ".venv\Scripts\python.exe" (
-  ".venv\Scripts\python.exe" -c "import flask, cryptography" >nul 2>&1
+  ".venv\Scripts\python.exe" -c "import flask, cryptography, certifi" >nul 2>&1
   if not errorlevel 1 (
     set "APP_PY=%~dp0.venv\Scripts\python.exe"
     echo Python, Flask, and cryptography are already installed.
     goto :open_app
   )
 )
-"%PY%" -c "import flask, cryptography" >nul 2>&1
+"%PY%" -c "import flask, cryptography, certifi" >nul 2>&1
 if not errorlevel 1 (
   set "APP_PY=%PY%"
   echo Python, Flask, and cryptography are already installed.
