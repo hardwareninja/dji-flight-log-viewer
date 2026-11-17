@@ -299,6 +299,10 @@ class R:
         self.p = 0
 
     def take(self, n: int) -> bytes:
+        # A short record used to raise IndexError on single-byte reads, which
+        # the record parsers do not catch, so one truncated record aborted the log.
+        if n < 0 or self.p + n > len(self.d):
+            raise struct.error("unexpected end of record")
         b = self.d[self.p:self.p + n]
         self.p += n
         return b

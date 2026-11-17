@@ -18,7 +18,7 @@ Stick movement and cockpit view:
 
 ## Features
 
-- **Encrypted log parsing** — DJI Fly v14 logs are encrypted per-record. This parser implements the full pipeline: CRC-64 framing, XOR seed derivation, AES-128-CBC decryption with per-feature-point IV chains, and keychain retrieval via the DJI Developer API (`https://developer.dji.com/api/openapi/v1/appapi/component/info/keychain`).
+- **Encrypted log parsing** — DJI Fly v14 logs are encrypted per-record. This parser implements the full pipeline: CRC-64 framing, XOR seed derivation, AES-256-CBC decryption with per-feature-point IV chains, and keychain retrieval via the DJI Developer API (`https://dev.dji.com/openapi/v1/flight-records/keychains`).
 - **DATA ANALYZER** — multi-series uPlot chart (height, altitude, speeds, battery, attitude, RC sticks) with multi-Y axes, brush zoom, and hover crosshair.
 - **MAP** — Leaflet map with Esri satellite imagery / OpenStreetMap / OpenTopoMap, flight track polyline, clickable points, and a Point Details panel synced with the chart.
 - **DATA VIEWER** — sortable data table with row count selector and CSV export.
