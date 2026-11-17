@@ -230,7 +230,7 @@ function buildForensics(j) {
   const a = analyzeFlight(j);
   state.analysis = a;
   const id = a.identity, s = a.summary;
-  const row = (k, v) => `<div class="row"><span>${k}</span><span>${v}</span></div>`;
+  const row = (k, v) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`;
   $("forensicBody").innerHTML = `
     <h5>Device Identity</h5>
     ${row("Aircraft", id.aircraft)}
@@ -251,7 +251,7 @@ function buildForensics(j) {
     ${a.phases.map(p => row(p.name, (p.end - p.start).toFixed(0) + " s")).join("") || "<div class='muted'>No phases</div>"}
     <h5>Anomaly Flags (${a.flags.length})</h5>
     ${a.flags.length ? a.flags.map(fl =>
-      `<div class="flag flag-${fl.sev}"><b>${fl.t != null ? fl.t.toFixed(1) + "s" : ""}</b> ${fl.msg}</div>`).join("")
+      `<div class="flag flag-${esc(fl.sev)}"><b>${fl.t != null ? esc(fl.t.toFixed(1) + "s") : ""}</b> ${esc(fl.msg)}</div>`).join("")
       : "<div class='muted'>No anomalies detected.</div>"}`;
 }
 
@@ -282,9 +282,9 @@ function exportForensicReport() {
     [],
     ["ANOMALY FLAGS"],
     ["Severity", "Time s", "Description"],
-    ...a.flags.map(fl => [fl.sev, fl.t != null ? fl.t.toFixed(1) : "", '"' + fl.msg.replaceAll('"', "'") + '"']),
+    ...a.flags.map(fl => [fl.sev, fl.t != null ? fl.t.toFixed(1) : "", fl.msg]),
   ];
-  const csv = lines.map(r => r.join(",")).join("\n");
+  const csv = lines.map(r => r.map(csvField).join(",")).join("\n");
   const el = document.createElement("a");
   el.href = "data:text/csv," + encodeURIComponent(csv);
   el.download = (state.current || "flight").replace(/\.txt$/, "") + "_forensic_report.csv";
@@ -308,11 +308,8 @@ function buildInfo(j) {
     ["Home", [d.area_code, d.city, d.area].filter(Boolean).join(", ") || "—"],
   ];
   $("flightInfo").innerHTML = rows.map(
-    ([k, v]) => `<span class="k">${k}</span><span class="v">${esc(v)}</span>`).join("");
+    ([k, v]) => `<span class="k">${esc(k)}</span><span class="v">${esc(v)}</span>`).join("");
 }
-
-const esc = v => String(v ?? "—").replace(/[&<>"]/g,
-  c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 function buildTimeline(j) {
   const f = j.frames;
@@ -851,7 +848,7 @@ function buildTable() {
   const cols = TABLE_COLS.filter(([k]) => f.some(x => x[k] != null));
   state.tableCols = cols;
   const thead = $("dataTable").querySelector("thead");
-  thead.innerHTML = "<tr>" + cols.map(([, l]) => `<th>${l}</th>`).join("") + "</tr>";
+  thead.innerHTML = "<tr>" + cols.map(([, l]) => `<th>${esc(l)}</th>`).join("") + "</tr>";
   thead.querySelectorAll("th").forEach((th, i) => th.onclick = () => sortTable(i));
   renderTable();
 }
@@ -868,7 +865,7 @@ function renderTable(offset = 0) {
     if (k === "ts") v = v ? new Date(v * 1000).toLocaleTimeString() : "";
     else if (typeof v === "number") v = Math.abs(v) < 1e-4 ? (v === 0 ? "0" : v.toExponential(1)) :
       (+v.toFixed(v > 100 ? 1 : 4)).toString();
-    return `<td>${v ?? ""}</td>`;
+    return `<td>${esc(v ?? "")}</td>`;
   }).join("") + "</tr>").join("");
   tb.querySelectorAll("tr").forEach(tr =>
     tr.onclick = () => showPoint(+tr.dataset.i));
@@ -890,8 +887,8 @@ function sortTable(ci) {
 
 $("btnCsv").onclick = () => {
   const f = state.data.frames, cols = state.tableCols;
-  const csv = [cols.map(([, l]) => l).join(","),
-    ...f.map(x => cols.map(([k]) => x[k] ?? "").join(","))].join("\n");
+  const csv = [cols.map(([, l]) => csvField(l)).join(","),
+    ...f.map(x => cols.map(([k]) => csvField(x[k] ?? "")).join(","))].join("\n");
   const a = document.createElement("a");
   a.href = "data:text/csv," + encodeURIComponent(csv);
   a.download = (state.current || "frames") + ".csv";
